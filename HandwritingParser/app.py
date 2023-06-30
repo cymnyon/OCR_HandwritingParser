@@ -3,15 +3,6 @@ import cv2
 import pytesseract
 import os
 
-# # Get the current directory path
-# base_path = os.path.dirname(os.path.abspath(__file__))
-
-# # Set the path to the templates directory
-# templates_path = os.path.join(base_path, 'HandwritingParser', 'templates')
-
-# # Configure Flask app with the updated templates path
-# app = Flask(__name__, template_folder=templates_path)
-
 app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
@@ -46,9 +37,9 @@ def image_to_text(image_path):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Apply thresholding technique
-    blockSize = 75  # size of the neighborhood for threshold calculation
-    C = 5  # constant subtracted from the mean
-    img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, blockSize, C)
+    block_size = 7  # size of the neighborhood for threshold calculation
+    C = 19  # constant subtracted from the mean
+    img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, C)
 
     # Perform OCR using pytesseract
     text = pytesseract.image_to_string(img)
