@@ -1,9 +1,24 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
 import cv2
 import pytesseract
 import os
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///handwriting.db'
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(50), nullable=False)
+    nickname = db.Column(db.String(50), nullable=False)
+
+    def __repr__(self):
+        return f"<User {self.username}>"
+
+with app.app_context():
+    db.create_all()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -22,9 +37,61 @@ def index():
         elif 'text' in request.form:
             text = request.form['text']
             # Render the result page with the entered text
-            return render_template('result.html', text=text)
+            return redirect(url_for('result', text=request.form['text']))
     # Render the main page with the upload form and drawing space
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = get_user(username)
+        if user and user.password == password:
+            # login successful, redirect to main page
+            return redirect(url_for('main'))
+        else:
+            error = 'Invalid username or password'
+            return render_template('login.html', error=error)
+    return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        nickname = request.form['nickname']
+        user = User.query.filter_by(username=username).first()
+        if user:
+            error = 'Username already exists'
+            return render_template('signup.html', error=error)
+        else:
+            # Create a new User
+            new_user = User(username=username, password=password, nickname=nickname)
+            try:
+                # Add new_user to the db
+                db.session.add(new_user)
+                db.session.commit()
+                # Redirect to login page after successful sign up
+                return redirect(url_for('login'))
+            except SQLAlchemyError as e:
+                # Handle db errors
+                error = 'An error occurred while signing up'
+                return render_template('signup.html', error=error)
+    return render_template('signup.html')
+
+@app.route('/main')
+def main():
     return render_template('main.html')
+
+@app.route('/result')
+def result():
+    text = request.args.get('text', '')
+    return render_template('result.html', text=text)
+
+def get_user(username):
+    user = User.query.filter_by(username=username).first()
+    return user
 
 def image_to_text(image_path):
     # Load the image using OpenCV
